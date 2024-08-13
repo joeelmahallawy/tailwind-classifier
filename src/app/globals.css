@@ -1,3 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.PolicyDocument {
+  /* background-color: #dc2626; */
+  background-color: teal;
+}
+.CertificateofInsurance {
+  background-color: darkgreen;
+}
+.NoticeofCancellation {
+  background-color: #4338ca;
+}
+.LossRunDocument {
+  background-color: magenta;
+}
+.AuthorizationLetter {
+  background-color: #ea580c;
+}

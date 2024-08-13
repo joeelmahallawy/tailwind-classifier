@@ -14,9 +14,10 @@ import {
   Divider,
   Flex,
   ActionIcon,
-  Switch,
   Checkbox,
   Tooltip,
+  Modal,
+  Badge,
 } from "@mantine/core";
 import {
   IconUpload,
@@ -25,31 +26,38 @@ import {
   IconX,
   IconCircleCheck,
   IconExternalLink,
+  IconTrash,
 } from "@tabler/icons-react";
+import Image from "next/image";
 import { Dropzone, PDF_MIME_TYPE } from "@mantine/dropzone";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { notifications } from "@mantine/notifications";
+import { CategorizedDocument } from "./types/client";
+import { useDisclosure } from "@mantine/hooks";
+import Header from "./components/Header";
+import CategorizedDocumentsModal from "./components/categoriesModal";
 
 const HomePage = () => {
-  const [uncategorizedDocument, setUncategorizedDocument] = useState<File>();
+  const [categorizedDocuments, setCategorizedDocuments] = useState<
+    CategorizedDocument[]
+  >([]);
+  const [uncategorizedDocuments, setUncategorizedDocuments] = useState<File[]>(
+    []
+  );
   const [forceCategorization, setForceCategorization] =
     useState<boolean>(false);
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  const [isModalOpened, { open: openModal, close: closeModal }] =
+    useDisclosure(false);
+
   return (
-    <Box>
-      <header className="shadow-sm shadow-gray-500 w-full justify-between px-6 py-2 items-center flex">
-        <Title ff="Helvetica" order={1}>
-          ClassifAI
-        </Title>
-        <Button radius={"xl"} size="sm" color="orange">
-          Enter app
-        </Button>
-      </header>
+    <Box className="pb-10">
+      <Header />
       <Center className="pt-2 flex-col mt-5">
         <Card
-          className="max-w-[45%] w-[45%]"
+          className="lg:w-[45%] lg:max-w-[45%] md:w-[65%] md:max-w-[65%] sm:max-w-[80%] sm:w-[80%] xs:max-w-[90%] xs:w-[90%]"
           shadow="sm"
           padding="lg"
           radius="md"
@@ -72,12 +80,12 @@ const HomePage = () => {
               one of the following documents:
             </Text>
             <List
-              spacing="xs"
+              spacing={8}
               center
               size="sm"
               icon={
                 <ThemeIcon color="teal" size={"sm"} radius="xl">
-                  <IconCircleCheck size={20} stroke={2} />
+                  <IconCircleCheck size={18} stroke={2} />
                 </ThemeIcon>
               }
             >
@@ -93,50 +101,80 @@ const HomePage = () => {
             onSubmit={async (e) => {
               e.preventDefault();
 
-              setIsLoading(true);
+              try {
+                setIsLoading(true);
+                // NOTE: this submission will make requests in parallel for each classification
 
-              // submit file via form data
-              const formSubmission = new FormData();
-              // we use blobs because it'll be easier to use in Node.js (our API endpoints)
-              const uncategorizedDocumentBlob = new Blob(
-                [uncategorizedDocument as File],
-                { type: uncategorizedDocument?.type }
-              );
-              formSubmission.append(
-                "uncategorizedDocument",
-                uncategorizedDocumentBlob
-              );
-              // classify!
-              const classifyDocumentRequest = await fetch(
-                // use Sensible if we want to force categorization based on similarity search (embeddings), otherwise use good ol' GPT-4
-                forceCategorization ? `/api/classifySensible` : `/api/classify`,
-                {
-                  method: "POST",
-                  body: formSubmission,
-                }
-              );
+                // for each file...
+                const categorizeAll = uncategorizedDocuments.map((doc) => {
+                  // submit via form data
+                  const formDataSubmission = new FormData();
+                  // use blob (easier to deal w/ IMO)
+                  const uncategorizedDocumentBlob = new Blob([doc as File], {
+                    type: doc?.type,
+                  });
+                  formDataSubmission.append(
+                    "uncategorizedDocument",
+                    uncategorizedDocumentBlob
+                  );
 
-              const classificationResult = await classifyDocumentRequest.json();
-
-              // error occurred on backend
-              if (!classificationResult.success) {
-                notifications.show({
-                  color: "red",
-                  message: classificationResult.error,
+                  // classify!
+                  return fetch(
+                    // use Sensible if we want to force categorization based on similarity search (embeddings), otherwise use good ol' GPT-4
+                    forceCategorization
+                      ? `/api/classifySensible`
+                      : `/api/classify`,
+                    {
+                      method: "POST",
+                      body: formDataSubmission,
+                    }
+                  ).then(async (res) => ({
+                    file: doc, // pass file along so we can display list of classified files
+                    result: await res.json(), // finalize classification
+                  }));
                 });
-              } else {
+
+                // send requests in parallel to get results of classification
+                const classifyAllSimultaneously = await Promise.all(
+                  categorizeAll
+                );
+
+                setCategorizedDocuments([...classifyAllSimultaneously]);
+
+                openModal(); // opens list with documents and their categories
                 notifications.show({
                   color: "green",
-                  message: `Success! ${classificationResult.result}`,
+                  message: `Success!`,
+                });
+                setIsLoading(false);
+              } catch (err) {
+                setIsLoading(false);
+                notifications.show({
+                  color: "red",
+                  // @ts-expect-error
+                  message: err?.message,
                 });
               }
-              setIsLoading(false);
+
+              // // error occurred on backend
+              // if (!classificationResult.success) {
+              //   notifications.show({
+              //     color: "red",
+              //     message: classificationResult.error,
+              //   });
+              // } else {
+              //   notifications.show({
+              //     color: "green",
+              //     message: `Success! ${classificationResult.documentType}`,
+              //   });
+              // }
+              //
             }}
           >
             <Dropzone
               className="mt-3"
               onDrop={(files) => {
-                setUncategorizedDocument(files[0]);
+                setUncategorizedDocuments([...files]);
               }}
               onReject={(files) => console.log("rejected files", files)}
               // 25MB size max
@@ -185,15 +223,16 @@ const HomePage = () => {
                     Drag files here or click to select files
                   </Text>
                   <Text size="sm" c="dimmed" inline mt={7}>
-                    Attach a single file no larger than 25MB
+                    Attach as many files as you like, each file should not
+                    exceed 25MB
                   </Text>
                 </div>
               </Group>
             </Dropzone>
-            {uncategorizedDocument && (
+            {uncategorizedDocuments.length > 0 && (
               <Box className="mt-2">
                 <Center className="justify-between my-3">
-                  <Text>Current file</Text>
+                  <Text>Current files</Text>
                   <Checkbox
                     onChange={(e) => {
                       setForceCategorization(e.currentTarget.checked);
@@ -202,7 +241,8 @@ const HomePage = () => {
                     label={
                       <div className="flex items-center gap-1">
                         <Text>Force categorization </Text>
-                        <Tooltip label="This will categorize your document even if it can't find a match.">
+
+                        <Tooltip label="This will categorize your document by similarity if it can't find a match.">
                           <ActionIcon size={24} radius={"xl"} color="dimmed">
                             <IconHelp size={24} stroke={2} />
                           </ActionIcon>
@@ -212,34 +252,46 @@ const HomePage = () => {
                   />
                 </Center>
                 <Divider my={3} />
-                <Flex justify="space-between">
-                  <Center className="gap-1">
-                    <Text size="sm" fw={700} c="white">
-                      {uncategorizedDocument.name}
-                    </Text>
-                    <Text c="dimmed" size="sm">
-                      {" "}
-                      ({(uncategorizedDocument.size / 1048 ** 2).toFixed(2)}MB)
-                    </Text>
-                  </Center>
-                  <a
-                    href={URL.createObjectURL(uncategorizedDocument)}
-                    target="_blank"
-                  >
-                    <ActionIcon
-                      aria-label="Open in new tab"
-                      // size="xs"
-                      color="none"
-                    >
-                      <IconExternalLink size={20} />
-                    </ActionIcon>
-                  </a>
-                </Flex>
+                {uncategorizedDocuments.map((document, index) => (
+                  <Flex justify="space-between" key={document.name}>
+                    <Center className="gap-1">
+                      <Text size="sm" fw={700} c="white">
+                        {document.name}
+                      </Text>
+                      <Text c="dimmed" size="sm">
+                        {" "}
+                        ({(document.size / 1048 ** 2).toFixed(2)}
+                        MB)
+                      </Text>
+                    </Center>
+                    <Center className="gap-1.5">
+                      <a href={URL.createObjectURL(document)} target="_blank">
+                        <ActionIcon aria-label="Open in new tab" color="none">
+                          <IconExternalLink size={20} />
+                        </ActionIcon>
+                      </a>
+
+                      <ActionIcon
+                        onClick={() => {
+                          // removes a file from the selected files
+                          const shallowCopy = [...uncategorizedDocuments];
+                          shallowCopy.splice(index, 1);
+                          setUncategorizedDocuments([...shallowCopy]);
+                        }}
+                        aria-label="Open in new tab"
+                        size={24}
+                        color="red"
+                      >
+                        <IconTrash size={20} />
+                      </ActionIcon>
+                    </Center>
+                  </Flex>
+                ))}
               </Box>
             )}
             <Button
               loading={isLoading}
-              disabled={!uncategorizedDocument}
+              disabled={uncategorizedDocuments.length < 1}
               type="submit"
               color="violet"
               fullWidth
@@ -251,6 +303,11 @@ const HomePage = () => {
           </form>
         </Card>
       </Center>
+      <CategorizedDocumentsModal
+        categorizedDocuments={categorizedDocuments}
+        isModalOpened={isModalOpened}
+        closeModal={closeModal}
+      />
     </Box>
   );
 };

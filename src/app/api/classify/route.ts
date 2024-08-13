@@ -53,7 +53,7 @@ export const POST = async (req: Request) => {
       messages.data[0].content[0]!.text!.value;
 
     return NextResponse.json({
-      result: insuranceDocumentClassification,
+      documentType: insuranceDocumentClassification,
       success: true,
     });
   } catch (err) {
