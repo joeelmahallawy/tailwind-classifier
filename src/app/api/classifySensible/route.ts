@@ -1,14 +1,8 @@
-import { SensibleCategorizationResponse } from "@/app/types/server";
+import {
+  SensibleCategorizationResponse,
+  SensibleDocumentTypes,
+} from "@/app/types/server";
 import { NextRequest, NextResponse } from "next/server";
-
-// we create this mapping since the tag names in Sensible are ugly :(
-export const SensibleDocumentTypes = {
-  policy_document: "Policy Document",
-  certificate_insurance: "Certificate of Insurance",
-  notice_cancellation: "Notice of Cancellation",
-  loss_run: "Loss Run Report",
-  authorization_letter: "Authorization Letter",
-};
 
 // FORCE CATEGORIZATION
 export const POST = async (req: NextRequest) => {

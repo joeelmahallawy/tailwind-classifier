@@ -1,4 +1,12 @@
-import { SensibleDocumentTypes } from "@/app/api/classifySensible/route";
+// we create this mapping since the tag names in Sensible are ugly :(
+export const SensibleDocumentTypes = {
+  // not a type but is almost treated as an enum
+  policy_document: "Policy Document",
+  certificate_insurance: "Certificate of Insurance",
+  notice_cancellation: "Notice of Cancellation",
+  loss_run: "Loss Run Report",
+  authorization_letter: "Authorization Letter",
+};
 
 export type SensibleCategorization = {
   id: string;
