@@ -77,7 +77,11 @@ const CategorizedDocumentsModal = ({
             <Divider className="my-1" />
             {/* every file in each group gets listed with an external link to view it */}
             {successfulFiles?.map((file) => (
-              <CategorizedFile file={file} status="success" />
+              <CategorizedFile
+                file={file}
+                status="success"
+                key={file.file.name}
+              />
             ))}
           </Box>
         );
@@ -93,7 +97,11 @@ const CategorizedDocumentsModal = ({
           </Center>
           <Divider className="my-1" />
           {invalidCategorization.map((invalidCategoryFile) => (
-            <CategorizedFile file={invalidCategoryFile} status="invalid" />
+            <CategorizedFile
+              file={invalidCategoryFile}
+              status="invalid"
+              key={invalidCategoryFile.file.name}
+            />
           ))}
         </>
       )}
@@ -109,7 +117,11 @@ const CategorizedDocumentsModal = ({
           </Center>
           <Divider className="my-1" />
           {failedCategorizations.map((failedFile) => (
-            <CategorizedFile file={failedFile} status="error" />
+            <CategorizedFile
+              file={failedFile}
+              status="error"
+              key={failedFile.file.name}
+            />
           ))}
         </>
       )}
