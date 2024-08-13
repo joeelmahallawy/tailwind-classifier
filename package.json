@@ -24,6 +24,7 @@
     "moment": "^2.30.1",
     "next": "14.2.5",
     "oas": "^24.5.3",
+    "object.groupby": "^1.0.3",
     "openai": "^4.55.4",
     "pdf-parse": "^1.1.1",
     "pdf-text-reader": "^5.1.0",
