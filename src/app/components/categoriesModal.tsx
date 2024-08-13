@@ -1,4 +1,5 @@
 import { Center, Title, Modal, Badge, Divider, Box } from "@mantine/core";
+import _ from "lodash";
 import { CategorizedDocument, InsuranceDocumentType } from "../types/client";
 import { useMemo } from "react";
 import CategorizedFile from "./categorizedFile";
@@ -15,7 +16,7 @@ const CategorizedDocumentsModal = ({
   const successfulCategorizations = useMemo(
     () =>
       Object.entries(
-        Object.groupBy(
+        _.groupBy(
           // files that were successful
           categorizedDocuments
             .filter((doc) => doc.result.success)
